@@ -3,10 +3,13 @@ using DynamicalSystems
 using CairoMakie
 using GLMakie
 
-function orbits(matrix, indexmin, indexmax, tmin, tmax)
-    vec = Vector{Vector{Tuple}}()
+function orbits(matrix, indexmin, indexmax, tmin, tmax, s)
+    vec = Vector{Vector{Vector}}()
     j = 10
-  
+
+    used = Matrix{Bool}(undef, s, s)
+    fill!(used, false)
+
     while true
         if j >= indexmax
             break
@@ -14,43 +17,42 @@ function orbits(matrix, indexmin, indexmax, tmin, tmax)
 
         for i in j + indexmin:indexmax
             if matrix[i][j]
-                indices = find_orbit(matrix, i, j)
-                if length(indices) >= tmin && length(indices) <= tmax && is_original_orbit(vec, indices, indexmax)
+                indices = find_orbit(matrix, i, j, used, s)
+                if length(indices) >= tmin && length(indices) <= tmax && is_original_orbit(vec, indices)
+                    mysort!(indices)
                     push!(vec, indices)
                     j = next_column(indices)
                     break
                 end
             end
         end
+
         j += 1
     end
     return vec
 end
 
-function find_orbit(matrix, i, j)
-    indices = Vector{Tuple}()
-    s = size(matrix)[1]
+function find_orbit(matrix, i, j, used, s)
+    indices = Vector{Vector}()
 
-    used = Matrix{Bool}(undef, s, s)
-    fill!(used, false)
-    
-    push!(indices, (i, j))
+    push!(indices, [i, j])
     used[i, j] = true
 
-    find!(matrix, i, j, indices, used)
+    find!(matrix, i, j, indices, used, s)
     return indices
 end
 
-function find!(matrix, i, j, indices, used)
+function find!(matrix, i, j, indices, used, s)
     for i1 in -1:1
         for j1 in -1:1
-            if i1 == j1 == 0
+            if i1 == j1 == 0 || i - i1 == 0 || j - j1 == 0 || i - i1 == s || j - j1 == s
                 continue
             end
+                
             if matrix[i - i1][j - j1] && !used[i - i1, j - j1]
-                push!(indices, (i - i1, j - j1))
+                push!(indices, [i - i1, j - j1])
                 used[i - i1, j - j1] = true
-                find!(matrix, i - i1, j - j1, indices, used)
+                find!(matrix, i - i1, j - j1, indices, used, s)
             end
         end
     end
@@ -58,39 +60,53 @@ function find!(matrix, i, j, indices, used)
 end
 
 function next_column(indices)
-    max = 0
-    for i in eachindex(indices)
-        if (indices[i][2] > max)
-            max = indices[i][2]
-        end
-    end
-    return max
+    return maximum(v[2] for v in indices)
 end
 
-function is_original_orbit(vec, indices, indexmax)
+function is_original_orbit(vec, indices)
     n = length(vec)
     if n == 0
         return true
     end
 
-    max = 0
-    for i in eachindex(vec[n])
-        if (vec[n][i][2] > max)
-            max = vec[n][i][2]
-        end
-    end
+    max = maximum(v[:][2] for v in vec[n])
 
-    min = indexmax
-    for i in eachindex(indices)
-        if (indices[i][2] < min)
-            min = indices[i][2]
-        end
-    end
+    min = minimum(v[2] for v in indices)
 
     if max < min
         return true
     end
     return false
+end
+
+function mysort!(indices)
+    n = length(indices)
+    function quicksort(arr, low, high)
+        if low < high
+            pivot = partition(arr, low, high)
+            quicksort(arr, low, pivot - 1)
+            quicksort(arr, pivot + 1, high)
+        end
+    end
+
+    function partition(arr, low, high)
+        pivot = arr[high][2]
+        i = low - 1
+        for j in low:high - 1
+            if arr[j][2] <= pivot
+                i += 1
+                arr[i][1], arr[j][1] = arr[j][1], arr[i][1]
+                arr[i][2], arr[j][2] = arr[j][2], arr[i][2]
+            end
+        end
+        i += 1
+        arr[i][1], arr[high][1] = arr[high][1], arr[i][1]
+        arr[i][2], arr[high][2] = arr[high][2], arr[i][2]
+        return i
+    end
+
+    quicksort(indices, 1, n)
+    return nothing
 end
 
 function lorenz_rule!(du, u, p, t)
@@ -105,28 +121,34 @@ p0 = [10, 28, 2.666]
 lorenz = CoupledODEs(lorenz_rule!, u0, p0)
 
 total_time = 200
-Y, t = trajectory(lorenz, total_time; Ttr = 3)
+Δt = 0.01
+Ttr = 3
+Y, t = trajectory(lorenz, total_time; Ttr, Δt)
 
 R = RecurrenceMatrix(Y, 3.0)
 
 r = Vector{Vector}()
 s = size(R)[1]
-for i in 0:s:s*(s - 1)
+for i in 0:s:(s*(s - 1))
    tmp = Vector{}()
-   for j in (i + 1):s + i
+   for j in (i + 1):(s + i)
        push!(tmp, R[j])
    end
    push!(r, tmp)
 end
 
-v = orbits(r, 100, (s - 11), 30, 50)
+tmin = 30 / Δt # Minimum time of each orbit
+tmax = 50 / Δt # Maximum time of each orbit
+dt = 200       # Time close to main diagonal which we wont consider
 
-xs1 = Vector{Int64}()
-ys1 = Vector{Int64}()
+v = orbits(r, dt, s - dt, tmin, tmax, s)
+
+x1 = Vector{Int64}()
+y1 = Vector{Int64}()
 for i in eachindex(v)
    for j in eachindex(v[i])
-       push!(xs1, v[i][j][2])
-       push!(ys1, v[i][j][1])
+       push!(x1, v[i][j][2])
+       push!(y1, v[i][j][1])
    end
 end
 
@@ -138,9 +160,9 @@ recurrenceplot(R; ascii = true)
 
 fig = Figure(resolution = (10000, 10000))
 ax = Axis(fig[1,1])
-xs, ys = coordinates(R)
-CairoMakie.scatter!(ax, xs, ys; color = :black, markersize = 10)
-CairoMakie.scatter!(ax, xs1, ys1; color = :red, markersize = 10)
+x, y = coordinates(R)
+CairoMakie.scatter!(ax, x, y; color = :black, markersize = 10)
+CairoMakie.scatter!(ax, x1, y1; color = :red, markersize = 10)
 ax.limits = ((1, s), (1, s));
 ax.aspect = 1
 save_path = joinpath(current_dir, "RecurrenceMatrix.png")
@@ -159,31 +181,31 @@ for i in eachindex(v)
     end
 end
 
-fig2 = Figure(resolution = (1000, 1000))
+fig2 = Figure(resolution = (1000, 500))
 ax1 = Axis3(fig2[1, 1], azimuth = 0.5 * pi, title = "Original attractor")
-GLMakie.lines!(ax1, Y[:, 1], Y[:, 2], Y[:, 3]; linewidth=1, color=:blue)
+GLMakie.lines!(ax1, Y[:, 1], Y[:, 2], Y[:, 3]; linewidth = 1, color = :blue)
 ax2 = Axis3(fig2[1, 2], azimuth = 0.5 * pi, title = "Reconstructed attractor")
-GLMakie.lines!(ax2, x, y, z; linewidth=1, color=:red)
+GLMakie.lines!(ax2, x, y, z; linewidth = 1, color = :red)
 save_path = joinpath(current_dir, "Attractor.png")
 save(save_path, fig2)
 
 png_path = joinpath(current_dir, "Png")
-rm(png_path, recursive=true, force=true)
+rm(png_path, recursive = true, force = true)
 mkdir(png_path)
 
 for i in eachindex(v)
-    x1 = Float64[]
-    y1 = Float64[]
-    z1 = Float64[]
+    x = Float64[]
+    y = Float64[]
+    z = Float64[]
     for j in eachindex(v[i])
-        push!(x1, Y[v[i][j][1]][1])
-        push!(y1, Y[v[i][j][1]][2])
-        push!(z1, Y[v[i][j][1]][3])
+        push!(x, Y[v[i][j][1]][1])
+        push!(y, Y[v[i][j][1]][2])
+        push!(z, Y[v[i][j][1]][3])
     end
 
     figi = Figure(resolution = (1000, 1000))
     axi = Axis3(figi[1, 1], title = "$i orbit")
-    GLMakie.lines!(axi, x1, y1, z1; linewidth=5, color=:blue)
+    GLMakie.lines!(axi, x, y, z; linewidth = 5, color = :blue)
     save_path = joinpath(current_dir, "Png\\ReconsructedAttractorOrbit$i.png")
     save(save_path, figi)
 end
