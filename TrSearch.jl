@@ -1,14 +1,11 @@
-#=
-import Pkg
-Pkg.add("DynamicalSystems")
-Pkg.add("CairoMakie")
-Pkg.add("GLMakie")
-=#
+#import Pkg; Pkg.add("DynamicalSystems"); Pkg.add("CairoMakie"); Pkg.add("GLMakie")
 using DynamicalSystems
 using CairoMakie
 using GLMakie
 
-function orbits(matrix, indexmin, indexmax, tmin, tmax, s)
+function orbits(matrix, indexmin, tmin, tmax)
+    s = size(matrix)[1]
+    indexmax = s - indexmin
     vec = Vector{Vector{Point2}}()
     j = 10
 
@@ -107,9 +104,9 @@ function mysort!(indices)
     return nothing
 end
 
-function r_matrix_to_real_matrix(r, s)
+function r_matrix_to_real_matrix(r)
     real = Vector{Vector}()
-
+    s = size(r)[1]
     for i in 0:s:(s * (s - 1))
         tmp = Vector{}()
         for j in (i + 1):(s + i)
@@ -122,7 +119,6 @@ function r_matrix_to_real_matrix(r, s)
 end
 
 function newton_check()
-
     return true
 end
 
@@ -144,19 +140,18 @@ Y, t = trajectory(lorenz, total_time; Ttr, Δt)
 
 R = RecurrenceMatrix(Y, 3.0)
 
-s = size(R)[1]
-r = r_matrix_to_real_matrix(R, s)
+r = r_matrix_to_real_matrix(R)
 
 tmin = 20 / Δt # Minimum time of each orbit
 tmax = 50 / Δt # Maximum time of each orbit
 dt = 200       # Time close to main diagonal which we won't consider
 
-v = orbits(r, dt, s - dt, tmin, tmax, s)
+v = orbits(r, dt, tmin, tmax)
 
-p = Vector{Point2}()
+points = Vector{Point2}()
 for i in eachindex(v)
     for j in eachindex(v[i])
-        push!(p, [v[i][j][2], v[i][j][1]])
+        push!(points, [v[i][j][2], v[i][j][1]])
     end
 end
 
@@ -170,8 +165,7 @@ fig = Figure(resolution=(10000, 10000))
 ax = Axis(fig[1, 1])
 x, y = coordinates(R)
 CairoMakie.scatter!(ax, x, y; color=:black, markersize=10)
-CairoMakie.scatter!(ax, p; color=:red, markersize=10)
-ax.limits = ((1, s), (1, s));
+CairoMakie.scatter!(ax, points; color=:red, markersize=10)
 ax.aspect = 1
 save_path = joinpath(current_dir, "RecurrenceMatrix.png")
 save(save_path, fig)
@@ -183,31 +177,25 @@ colors = [:blue, :red, :green, :yellow, :orange, :black, :white, :gray,
     :lavender, :salmon, :teal, :violet, :gold, :silver]
 fig2 = Figure(resolution=(5000, 2500))
 ax1 = Axis3(fig2[1, 1], azimuth=0.5 * pi, title="Original attractor")
-GLMakie.lines!(ax1, Y[:, 1], Y[:, 2], Y[:, 3]; linewidth=1, color=:blue)
 ax2 = Axis3(fig2[1, 2], azimuth=0.5 * pi, title="Reconstructed attractor")
-k = 1
-for i in eachindex(v)
-    global k
-    if k > length(colors) k = 1 end
-    points = Vector{Point3f}()
-    for j in 1:length(v[i])
-        push!(points, [Y[v[i][j][1]][1], Y[v[i][j][1]][2], Y[v[i][j][1]][3]])
-    end
-    GLMakie.lines!(ax2, points; linewidth=1, color=colors[k])
-    k += 1
-end
-save_path = joinpath(current_dir, "Attractor.png")
-save(save_path, fig2)
+GLMakie.lines!(ax1, Y[:, 1], Y[:, 2], Y[:, 3]; linewidth=1, color=:blue)
 
 mkv_path = joinpath(current_dir, "Mkv")
 rm(mkv_path, recursive=true, force=true)
 mkdir(mkv_path)
 
+k = 1
 for i in eachindex(v)
+    global k
+    if k > length(colors) k = 1 end
+
     points = Vector{Point3f}()
-    for j in eachindex(v[i])
-        push!(points, [Y[v[i][j][1]][1], Y[v[i][j][1]][2], Y[v[i][j][1]][3]])
+
+    for j in 1:length(v[i])
+        push!(points, [Y[v[i][j][2]][1], Y[v[i][j][2]][2], Y[v[i][j][2]][3]])
     end
+    GLMakie.lines!(ax2, points; linewidth=1, color=colors[k])
+    k += 1
 
     xmin, xmax, ymin, ymax, zmin, zmax =
         minimum(p[:][1] for p in points), maximum(p[:][1] for p in points),
@@ -218,6 +206,7 @@ for i in eachindex(v)
     figi = Figure(resolution=(1000, 1000))
     axi = Axis3(figi[1, 1], title="$i orbit")
     limits!(axi, xmin, xmax, ymin, ymax, zmin, zmax)
+
     GLMakie.lines!(axi, point, color=:blue, markersize = 4000)
     
     frames = 2:length(points)
@@ -226,3 +215,6 @@ for i in eachindex(v)
         point[] = push!(point[], points[frame])
     end
 end
+
+save_path = joinpath(current_dir, "Attractor.png")
+save(save_path, fig2)
