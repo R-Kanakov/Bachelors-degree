@@ -5,9 +5,7 @@ using GLMakie
 using Base.Threads
 using IntervalTrees
 
-function orbits(matrix, indexmin, tmin, tmax, s)
-    indexmax = s - indexmin
-
+function orbits(matrix, dt, tmin, tmax, s)
     vec = Vector{Vector{Point2}}()
 
     used = Matrix{Bool}(undef, s, s)
@@ -15,8 +13,8 @@ function orbits(matrix, indexmin, tmin, tmax, s)
 
     local_vecs = [Vector{Any}() for _ in 1:nthreads()]
 
-    Threads.@threads for j in indexmin:indexmax
-        for i in j + indexmin:indexmax
+    Threads.@threads for j in 1:s
+        for i in j + dt:s
             if matrix[i][j]
                 indices = find_orbit(matrix, i, j, s, used)
                 if length(indices) >= tmin && length(indices) <= tmax
@@ -51,7 +49,7 @@ function filter_orbits(vec)
             push!(treey, Interval(minimum(v[1] for v in indices), maximum(v[1] for v in indices)))
         end
     end
-        
+
     return result
 end
 
@@ -75,18 +73,6 @@ end
 
 function next_column(indices)
     return maximum(v[2] for v in indices)
-end
-
-function is_original_orbit(vec, indices)
-    n = length(vec)
-    if n == 0 return true end
-
-    max = maximum(v[:][2] for v in vec[n])
-    min = minimum(v[2] for v in indices)
-
-    if max < min return true
-    else return false
-    end
 end
 
 function r_matrix_to_real_matrix(r, s)
@@ -122,9 +108,8 @@ function main()
 
     tmin = 2 / Δt  # Minimum time of each orbit
     tmax = 40 / Δt # Maximum time of each orbit
-    dt = 200       # Time close to main diagonal which we won't consider
+    dt = 1 / Δt    # Time close to main diagonal which we won't consider
 
-    # Main alorithm
     v = orbits(r, dt, tmin, tmax, s)
 
     points = Vector{Point2}()
@@ -199,7 +184,7 @@ function main()
             minimum(p[:][1] for p in pointsj), maximum(p[:][1] for p in pointsj),
             minimum(p[:][2] for p in pointsj), maximum(p[:][2] for p in pointsj),
             minimum(p[:][3] for p in pointsj), maximum(p[:][3] for p in pointsj)
-        
+
         point1 = Observable(Point3f[pointsi[1]])
         point2 = Observable(Point3f[pointsj[1]])
         figi = Figure(resolution=(1000, 1000))
@@ -207,9 +192,9 @@ function main()
         axj = Axis3(figi[1, 2])
         limits!(axi, xmin, xmax, ymin, ymax, zmin, zmax)
         limits!(axj, xmin1, xmax1, ymin1, ymax1, zmin1, zmax1)
-        
-        GLMakie.lines!(axi, point1, color=:blue, markersize = 4000)
-        GLMakie.lines!(axj, point2, color=:red, markersize = 4000)
+
+        GLMakie.lines!(axi, point1, color = :blue, markersize = 4000)
+        GLMakie.lines!(axj, point2, color = :red, markersize = 4000)
 
         frames = 2:length(pointsi)
         save_path = joinpath(mkv_path, "ReconsructedAttractorOrbit$i.mp4")
