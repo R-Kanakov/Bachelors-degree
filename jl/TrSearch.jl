@@ -8,7 +8,7 @@ using IntervalTrees
 using ForwardDiff
 using LinearAlgebra
 
-function make_times(v::Vector{Vector{Point2}})
+function make_return_vec(v::Vector{Vector{Point2}})
     res = Vector{Vector{Vector}}()
 
     for i in eachindex(v)
@@ -210,7 +210,7 @@ function main(ARGS)
     end
 
     s = length(t)
-    times = make_times(v)
+    return_vec = make_return_vec(v)
 
     # Making directories and paths to them
     current_dir = pwd()
@@ -247,13 +247,13 @@ function main(ARGS)
         :purple, :pink, :brown, :cyan, :magenta, :turquoise, :coral,
         :lavender, :salmon, :teal, :violet, :gold, :silver]
     k, n = 0, length(colors)
-    for i in eachindex(times)
+    for i in eachindex(return_vec)
 
         points = Vector{Vector{Point3f}}()
 
-        for j in 1:length(times[i])
+        for j in 1:length(return_vec[i])
             push!(points, [])
-            for k in times[i][j][1]:times[i][j][2]
+            for k in return_vec[i][j][1]:return_vec[i][j][2]
                 push!(points[j], Y[k])
             end
         end
@@ -261,7 +261,7 @@ function main(ARGS)
         # Chech orbit with Newton method
         j = 1
         while j <= length(points)
-            nw = newton_method(points[j], Y, times[i][j])
+            nw = newton_method(points[j], Y, return_vec[i][j])
             if nw == false
                 deleteat!(points, j)
                 j -= 1
@@ -280,7 +280,7 @@ function main(ARGS)
             minimum(p[3] for subpoints in points for p in subpoints), maximum(p[3] for subpoints in points for p in subpoints)
 
         # Reconstructed attractor visialization
-        for j in 1:length(times[i])
+        for j in 1:length(return_vec[i])
             k = (i + j - 1) % n + 1
             GLMakie.lines!(ax2, points[j]; linewidth = 1, color = colors[k])
         end
@@ -291,7 +291,7 @@ function main(ARGS)
         ax3 = Axis3(fig3[1, 1])
         limits!(ax3, xmin, xmax, ymin, ymax, zmin, zmax)
 
-        frames = 1:length(times[i])
+        frames = 1:length(return_vec[i])
         save_path = joinpath(mkv_path, "ReconsructedAttractorOrbit$i.mp4")
         record(fig3, save_path) do io
             for frame in frames
