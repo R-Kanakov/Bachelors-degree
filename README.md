@@ -1,1 +1,1 @@
-# Trajectory-search
+# Bachelor's degree work
