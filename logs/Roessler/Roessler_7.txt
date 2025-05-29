@@ -1,0 +1,18 @@
+t_max = 30.0, t_min = 1.0
+ε = 0.01, δ = 0.1
+
+Initial states are
+u[1] = [1.0, 1.0, 1.0]
+u[2] = [-1.0, -1.31596, -1.354461]
+u[3] = [0.0, -0.25, 0.42081]
+u[4] = [0.868908879913239, 0.5231900846001247, 0.3519376924326495]
+u[5] = [0.9922938765941924, 0.5844945089640757, 0.190086975915149]
+u[6] = [0.3340918172495908, 0.12516240307583637, 0.6031564153334676]
+
+Poincare surface of sections defined by:
+ - Direction of movement along the axis y
+ - Value in that direction is 1.0144791067725056
+ - Direction of plane intersection comes with decreasing coordinates (towards the negative normal)
+
+0 orbits found
+Try to increase total_time, t_max or ε.

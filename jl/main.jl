@@ -6,7 +6,9 @@ include("Pages/FourthPage.jl")
 
 function main()
   GLMakie.activate!()
+
   screen, fig, ds, rule, pageClosedM = initMainPage()
+
   display(screen, fig)
 
   pageClosedS = Observable(false)
@@ -21,7 +23,7 @@ function main()
 
   on(pageClosedS) do _ initThirdPage(screen, fig, u0s, total_time, system, psos, pageClosedT, i_orbits) end
 
-  on(pageClosedT) do _ initFourthPage(screen, fig, system, psos, i_orbits, ds[])                        end
+  on(pageClosedT) do _ initFourthPage(screen, fig, system, psos, i_orbits, ds[], u0s[], total_time[])   end
 end
 
 main()

@@ -63,14 +63,14 @@ To
 total_time = 1000  -> 0.38 s
 total_time = 10000 -> 0.80 s
 """
-function orbits(R, t_max, t_min, dt::Float64)
+function orbits(R, t_max, t_min, dt::Float64; save_matrix = save_matrix)
     if p == 0
         x, y = coordinates(R)
         save_matrix("1_Base", x, y, (ax)->())
     end
 
     # Delete lower part of matrix
-    R_sparce = sparse(RecurrenceAnalysis.tril(R.data, -1))
+    R_sparce = sparse(RecurrenceAnalysis.tril(R, -1))
 
     R_rows = rowvals(R_sparce)
     R_cols = findnz(R_sparce)[2]
@@ -86,9 +86,9 @@ function orbits(R, t_max, t_min, dt::Float64)
     if p == 0
         function add_lines(ax)
             CairoMakie.lines!(ax, [0, s - t_min / dt], [t_min / dt, s];
-                              color = :red, markersize = 10)
+                              color = :red)
             CairoMakie.lines!(ax, [0, s - t_max / dt], [t_max / dt, s];
-                              color = :red, markersize = 10)
+                              color = :red)
         end
         save_matrix("3_Time_Limits", R_cols, R_rows, add_lines)
     end
@@ -105,26 +105,38 @@ function orbits(R, t_max, t_min, dt::Float64)
 
     # Removing all points that are higher than one of the found point
     R_cols_len = length(R_cols)
-    mask = trues(R_cols_len)
 
-    for i in reverse(2:R_cols_len)
-        if R_cols[i] == R_cols[i - 1]
-            mask[i - 1] = false
+    pairs = [(R_rows[i], R_cols[i]) for i in eachindex(R_rows)]
+
+    sort!(pairs, by = x -> (x[2], x[1]))
+
+    unique_pairs = Set{}()
+    mask = falses(length(pairs))
+
+    for (i, pair) in enumerate(pairs)
+        if pair[2] ∉ unique_pairs
+            push!(unique_pairs, pair[2])
+            mask[i] = true
         end
     end
 
-    R_rows = R_rows[mask]
-    R_cols = R_cols[mask]
-    
+    R_rows = [pairs[i][1] for i in eachindex(pairs) if mask[i]]
+    R_cols = [pairs[i][2] for i in eachindex(pairs) if mask[i]]
+
     p == 0 && save_matrix("6_Without_Duplicates", R_cols, R_rows, (ax)->())
 
     # Removing all points that are to the right of one of the found point
     R_cols_len = length(R_cols)
     mask = trues(R_cols_len)
 
-    for i in reverse(2:R_cols_len)
-        if R_cols[i] == R_cols[i - 1] + 1
-            mask[i] = false
+    for i in 1:R_cols_len - 1
+        println("$i, R_cols[i] = $(R_cols[i]), R_cols[i + 1] = $(R_cols[i + 1]), R_rows[i] = $(R_rows[i]), R_rows[i + 1] = $(R_rows[i + 1])")
+        if R_cols[i] + 1 == R_cols[i + 1] &&
+           R_rows[i] + 1 == R_rows[i + 1]
+            mask[i + 1] = false
+        elseif R_cols[i] + 1 == R_cols[i + 1] &&
+               R_rows[i] == R_rows[i + 1]
+            mask[i + 1] = false
         end
     end
 
@@ -134,7 +146,7 @@ function orbits(R, t_max, t_min, dt::Float64)
     p == 0 && save_matrix("7_Only_Dots", R_cols, R_rows, (ax)->())
 
     length(R_rows) == 0 && (error("No trajectories lying so close have been found.
-                                  Try to increase total_time or ε"))
+                                   Try to increase total_time or ε"))
 
     return R_rows, R_cols
 end
@@ -176,6 +188,35 @@ function run_simulation(choice::Int64, total_time::Float64,
     return Y, R, R_rows, R_cols
 end
 
+function save_matrix(name, cols, rows, f)
+    # Recurrence matrix visualization
+    CairoMakie.activate!()
+    
+    fig = Figure(size = (1000, 1000))
+    ax = Axis(fig[1, 1], title = "Recurrence matrix")
+    CairoMakie.scatter!(ax, cols, rows; color = :black)
+    f(ax)
+    ax.limits = ((1, s), (1, s))
+    ax.aspect = 1
+    save_path = joinpath(png_path, "Recurrence_Matrix_$name.png")
+    save(save_path, fig)
+end
+
+function save_matrix_(name, cols, rows, f)
+    # Recurrence matrix visualization
+    CairoMakie.activate!()
+    
+    fig = Figure(size = (1000, 1000))
+    ax = Axis(fig[1, 1], title = "Recurrence matrix", titlesize = 35, xticklabelsize = 30, yticklabelsize = 30)
+    CairoMakie.scatter!(ax, cols, rows; color = :black)
+    f(ax)
+    ax.limits = ((1, 100), (1, 100))
+    ax.aspect = 1
+    save_path = joinpath(png_path, "Recurrence_Matrix_$name.png")
+    save(save_path, fig)
+end
+
+
 function parse_arguments()
     s = ArgParseSettings()
     @add_arg_table s begin
@@ -187,14 +228,14 @@ function parse_arguments()
         "--total_time", "-t"
             help = "Total time of dynamic system evaluation"
             arg_type = Float64
-            default = 5000
+            default = 50
         "--ε", "-e"
             help = "Parameter for recurrence matrix"
             arg_type = Float64
-            default = 0.01
+            default = 0.5
         "--t_max"
             help = "Maximum time of first return"
-            default = 5
+            default = 10
         "--t_min"
             help = "Minimum time of first return"
             default = 0.05
@@ -202,7 +243,7 @@ function parse_arguments()
             help = "0 to plot all steps of matrix transform
                     1 to skip this"
             arg_type = Int64
-            default = 1
+            default = 0
     end
 
     parsed_args = parse_args(s)
@@ -226,30 +267,15 @@ function parse_arguments()
     return choice, total_time, ε, t_max, t_min
 end
 
-function save_matrix(name, cols, rows, f)
-    # Recurrence matrix visualization
-
-    CairoMakie.activate!()
-    
-    fig = Figure(size = (10000, 10000))
-    ax = Axis(fig[1, 1], titlesize = 100, title = "Recurrence matrix")
-    CairoMakie.scatter!(ax, cols, rows; color = :black, markersize = 10)
-    f(ax)
-    ax.limits = ((1, s), (1, s))
-    ax.aspect = 1
-    save_path = joinpath(png_path, "Recurrence_Matrix_$name.png")
-    save(save_path, fig)
-end
-
 function main()
     # Making directories and paths to them
-    current_dir = dirname(dirname(@__FILE__))
+    current_dir = dirname(dirname(dirname(@__FILE__)))
     # For png
-    global png_path = joinpath(current_dir, "PngTmp")
+    global png_path = joinpath(current_dir, "Png","Png_old")
     rm(png_path, recursive = true, force = true)
     mkdir(png_path)
     # For mkv
-    mkv_path = joinpath(current_dir, "MkvTmp")
+    mkv_path = joinpath(current_dir, "Mkv", "Mkv_old")
     rm(mkv_path, recursive = true, force = true)
     mkdir(mkv_path)
 
@@ -258,7 +284,24 @@ function main()
     u0 = [10, 10, 10.9]
     global p0 = [10, 28, 2.666]
 
-    Y, R, R_rows, R_cols = run_simulation(choice, total_time, u0, ε, t_max, t_min)
+    #Y, R, R_rows, R_cols = run_simulation(choice, total_time, u0, ε, t_max, t_min)
+
+    n = 100
+    global s = 100
+    R_data = zeros(n, n)
+
+    for i in 1:n
+        for j in 1:n
+            if i == j || abs(i - j) <= 5 || (i % 10 == 0 && j % 10 == 0)
+                R_data[i, j] = 1
+            end
+        end
+    end
+    R_data[21,11]=1
+    
+    orbits(sparse(R_data), 0.5, 0.09, 0.01; save_matrix = save_matrix_)
+
+    @assert 1 == 2
 
     # Visualization and animation
     x, y = coordinates(R)
@@ -301,21 +344,21 @@ function main()
         GLMakie.lines!(ax3, points; linewidth = 1, color = colors[k])
 
         # Orbits animation
-        fig3 = Figure(size=(1000, 1000))
-        ax4 = Axis3(fig3[1, 1])
+        #fig3 = Figure(size=(1000, 1000))
+        #ax4 = Axis3(fig3[1, 1])
         #limits!(ax4, xmin, xmax, ymin, ymax, zmin, zmax)
-        save_path = joinpath(mkv_path, "ReconsructedAttractorOrbit$i.mp4")
-        println(length(points))
-        @time begin
-            record(fig3, save_path) do io
-                pointObservable = Observable(Point3f[points[1]])
-                for j in 2:length(points)
-                    pointObservable[] = push!(pointObservable[], points[j])
-                    GLMakie.lines!(ax4, pointObservable[]; color = :blue)#, markersize = 5000)
-                    recordframe!(io)
-                end
-            end
-        end
+        # save_path = joinpath(mkv_path, "ReconsructedAttractorOrbit$i.mp4")
+        # println(length(points))
+        # @time begin
+        #     record(fig3, save_path) do io
+        #         pointObservable = Observable(Point3f[points[1]])
+        #         for j in 2:length(points)
+        #             pointObservable[] = push!(pointObservable[], points[j])
+        #             GLMakie.lines!(ax4, pointObservable[]; color = :blue)#, markersize = 5000)
+        #             recordframe!(io)
+        #         end
+        #     end
+        # end
     end
 
     save_path = joinpath(png_path, "Attractor.png")

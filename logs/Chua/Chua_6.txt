@@ -1,0 +1,32 @@
+t_max = 9.0, t_min = 1.0
+ε = 0.01, δ = 0.1
+
+Initial states are
+u[1] = [0.0, -0.25, 0.42081]
+
+Poincare surface of sections defined by:
+ - Direction of movement along the axis y
+ - Value in that direction is 0.03645987385676115
+ - Direction of plane intersection comes with decreasing coordinates (towards the negative normal)
+
+
+Orbit 1
+Begin state = [0.9653819348699357, 0.03645987385676115, 0.11776714011283633]
+End state   = [0.9671255627374642, 0.037564569464275895, 0.11779132800181463]
+Δ = 0.0020642615095131356
+T = 8.32
+Psos intersection number is 5
+
+Orbit 2
+Begin state = [-1.7716130349772903, 0.03645987385676115, 2.7173530902235514]
+End state   = [-1.7714074696279134, 0.03499276635867675, 2.707536280273351]
+Δ = 0.009927961478680086
+T = 7.54
+Psos intersection number is 5
+
+Total orbits = 2
+
+5 intersections have orbits with indexes
+[i = 1
+ i = 2]
+All orbits were different

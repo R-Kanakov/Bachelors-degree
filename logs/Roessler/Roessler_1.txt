@@ -1,0 +1,60 @@
+t_max = 50.0, t_min = 1.0
+ε = 0.01, δ = 0.05
+
+Initial states are
+u[1] = [1.0, 1.0, 1.0]
+u[2] = [-1.0, -1.31596, -1.354461]
+u[3] = [0.0, -0.25, 0.42081]
+
+Poincare surface of sections defined by:
+ - Direction of movement along the axis x
+ - Value in that direction is 0.10504165640634539
+ - Direction of plane intersection comes with decreasing coordinates (towards the negative normal)
+
+
+Orbit 1
+Begin state = [0.10467612954994529, -10.572022689764221, 0.029305054231203092]
+End state   = [-0.01806731101812387, -10.553476816742553, 0.028605581777264417]
+Δ = 0.12413859540987567
+T = 46.83318054266859
+Distance has been increased. Skipping orbit
+
+Orbit 2
+Begin state = [0.10520141561069289, -9.10676884663235, 0.029852106810121324]
+End state   = [0.002881844931928605, -9.089871122423558, 0.029286870699920222]
+Δ = 0.10370702540900174
+T = 46.832964983344944
+Distance has been increased. Skipping orbit
+
+Orbit 3
+Begin state = [0.10451933440944133, -6.586340665065875, 0.030859464394873203]
+End state   = [0.03210844131646899, -6.573104180588868, 0.03059615054966042]
+Δ = 0.07361121717519006
+T = 46.83271062748377
+Distance has been increased. Skipping orbit
+
+Orbit 4
+Begin state = [0.10505693047493432, -10.572120878600156, 0.029305456772875917]
+End state   = [-0.0179594505830749, -10.553921424574746, 0.028605766269251903]
+Δ = 0.12435730658965403
+T = 46.83319743617781
+Distance has been increased. Skipping orbit
+
+Orbit 5
+Begin state = [0.10453371390295288, -3.1558916597600777, 0.03329889926252091]
+End state   = [0.062459739483629144, -3.1534490510199467, 0.032802342166095046]
+Δ = 0.04214774287960488
+T = 46.83730858844639
+Distance has been increased. Skipping orbit
+
+Orbit 6
+Begin state = [0.10504165640634539, -5.741060844642487, 0.0313616340485503]
+End state   = [0.09568656924658712, -5.741652819543195, 0.031319774466188714]
+Δ = 0.009373891522434978
+T = 46.84
+Psos intersection number is 8
+
+Total orbits = 1
+
+8 intersections have orbits with indexes
+[i = 6]

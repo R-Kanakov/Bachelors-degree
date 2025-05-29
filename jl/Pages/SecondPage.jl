@@ -83,9 +83,9 @@ function roessler_u0s(u0s)
 end
 
 function chua_u0s(u0s)
+  u0s[] = push!(u0s[], [0.0, -0.25, 0.42081])
   u0s[] = push!(u0s[], [1.0, 1.0, 1.0])
   u0s[] = push!(u0s[], [-1.0, -1.31596, -1.354461])
-  u0s[] = push!(u0s[], [0.0, -0.25, 0.42081])
 end
 
 

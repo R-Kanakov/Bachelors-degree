@@ -6,7 +6,6 @@ include("../util.jl")
 
 
 # TODO: Make function that parse strings to DS rule
-
 function parse_strings()
   return true
 end
@@ -46,7 +45,7 @@ function create_button_next_main(fig, grids, ds, flag)
       if res # Parse Ok
         delete_all!(fig)
         flag[] = true
-      else   # Parse error
+      else
         @error "Parse error"
       end
     end
@@ -60,16 +59,20 @@ function initMainPage()
   grids = Observable([GridLayout(fig[i, 1], tellwidth = false, tellheight = false) for i in 1:3])
 
   Label(grids[][1][1, 2], "Choose Dynamical System", 
-                    halign = :center, valign = :top,
-                    tellwidth = false, tellheight = false)
+                    halign = :center,
+                    valign = :top,
+                    tellwidth  = false,
+                    tellheight = false)
   rowsize!(grids[][1], 1, Relative(1/5))
 
   menu = Menu(grids[][2][1, 1], 
               options = ["Lorenz", "Henonheiles", "Rikitake", "Gissinger", "Roessler", "Chua", "Enter"],
               default = "Lorenz",
-              halign = :center, valign = :top,
-              width = 200,
-              tellwidth = false, tellheight = false)
+              width   = 200,
+              halign  = :center,
+              valign  = :top,
+              tellwidth  = false,
+              tellheight = false)
   rowsize!(grids[][2], 1, Relative(1/5))
   
   ds           = Observable("Lorenz")
@@ -99,10 +102,11 @@ function initMainPage()
         if created_flag
           for child in contents(grids[][3]) delete!(child) end
           trim!(grids[][3])
-          GC.gc()
+
           str = Observable(String[" ", " ", " "])
           created_flag = false
         end
+
         ds[] = s
       end
   end
