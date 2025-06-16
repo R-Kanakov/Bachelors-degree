@@ -29,9 +29,10 @@ function periodic_orbit_(ds::CoupledODEs, alg::OptimizedShooting, ig::InitialGue
 
     sol = solve(SciMLBase.remake(ds.integ.sol.prob; u0 = u0, tspan = tspan);
                 DynamicalSystemsBase.DEFAULT_DIFFEQ..., ds.diffeq..., saveat = bounds)
+
     if (length(sol.u) == alg.n * 2)
         for i in 1:alg.n
-            err[D * i - (D - 1):D * i] = (sol.u[i] - sol.u[i + alg.n])
+            err[D * i - (D - 1):D * i] = sol.u[i] - sol.u[i + alg.n]
         end
     else
         fill!(err, Inf)
@@ -39,7 +40,7 @@ function periodic_orbit_(ds::CoupledODEs, alg::OptimizedShooting, ig::InitialGue
   end
 
   prob = NonlinearLeastSquaresProblem(
-      NonlinearFunction(f, resid_prototype = zeros(alg.n*dimension(ds))), [ig.u0..., ig.T])
+      NonlinearFunction(f, resid_prototype = zeros(alg.n * D)), [ig.u0..., ig.T])
 
   sol = solve(prob, NonlinearSolve.LevenbergMarquardt(); alg.nonlinear_solve_kwargs...)
 
@@ -50,7 +51,6 @@ function periodic_orbit_(ds::CoupledODEs, alg::OptimizedShooting, ig::InitialGue
 
   return (state = trajectory(ds, T - Δt, u0; Δt = Δt)[1], period = T)
 end
-
 
 function lm(system::CoupledODEs, u0::U where {U<:AbstractArray{<:Real}}, T::Float64, Δt::Float64, t_min::Float64)
   ig = InitialGuess(u0, T)

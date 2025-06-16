@@ -2,8 +2,6 @@ using DynamicalSystems, OrdinaryDiffEq
 using GLMakie
 using LaTeXStrings
 
-include("../util.jl")
-
 
 function create_u_boxes(grid, i, u0s, D)
   latex_expr = latexstring("u_{", i, "} = ")

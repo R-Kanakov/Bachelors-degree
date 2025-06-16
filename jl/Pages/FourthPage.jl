@@ -7,9 +7,7 @@ using Base.Filesystem
 using LightGraphs
 
 include("../Algorithms/LM.jl")
-include("../util.jl")
 
-# Add png
 
 function callback(system, psos, v, j, dir, u0s, t_max, t_min, ε, δ, Δt, total_time, saveR, saveO, ds)
   R, res = [], []
@@ -27,12 +25,14 @@ function callback(system, psos, v, j, dir, u0s, t_max, t_min, ε, δ, Δt, total
 
   log = open(new_file_path, "w")
 
+  # Logging initial state
   write(log, "t_max = $(t_max[]), t_min = $(t_min[])\n")
   write(log, "ε = $(ε[]), δ = $(δ[])\n\n")
   write(log, "Initial states are\n")
   for i in eachindex(u0s)
-    write(log, "u[$i] = $(u0s[i])\n")
+    write(log, "    u[$i] = $(u0s[i])\n")
   end
+  write(log, "\nNumber of founded dots is $(sum(length(psos_) for psos_ in psos))\n")
   write(log, "\nPoincare surface of sections defined by:\n")
   write(log, " - Direction of movement along the axis $(('x':'z')[j])\n")
   write(log, " - Value in that direction is $v\n")
@@ -40,8 +40,10 @@ function callback(system, psos, v, j, dir, u0s, t_max, t_min, ε, δ, Δt, total
   write(log, "$(if dir == true "increasing coordinate (towards the positive normal)" 
                 else "decreasing coordinates (towards the negative normal)"
                 end)")
+  write(log, "")
   write(log, "\n\n")
 
+  # Making paths to Png and Mkv directories
   if saveR[]
     png_path = joinpath(current_dir, "Png", "$ds")
     rm(png_path, recursive = true, force = true)
@@ -54,68 +56,83 @@ function callback(system, psos, v, j, dir, u0s, t_max, t_min, ε, δ, Δt, total
     mkdir(mkv_path)
   end
 
-  for i in eachindex(psos)
+  # Integrating each dot on psos
+  # psos - вектор, элементом которого является набор точек
+  # из сечения Пуанкаре для определённого начального условия
+
+  for i in eachindex(psos) # идём по каждому начальному значению
     push!(R, [])
+
+    # Интегрируем систему на время t_max для каждой точки из плоскости Пуанкаре
     trs = [trajectory(system, t_max[], u0, Δt = Δt) for u0 in psos[i]]
 
+    # Для каждой траектории смотрим в первый столбец, если существует возвращаение
+    # в ε окрестность, то сохраняем период
     Rs = [let d = distance_col_s(tr[1], ε[], Int(t_min[] / Δt))
             if d.b == true
-              (r = d.r, )
+              r = d.r
             end
           end for tr in trs]
     
-
     for k in eachindex(Rs)
       if !isnothing(Rs[k])
-        push!(R[i], [trs[k][1][1], Rs[k].r])
+        push!(R[i], [trs[k][1][1], Rs[k]]) # R[начальное условие][все точки для которых есть возвращение]
       end
     end
   end
 
-  (all(length(R[i]) == 0 for i in eachindex(psos))) && (write(log, "0 orbits found\nTry to increase total_time, t_max or ε.");
-                                                        close(log);
-                                                        return)
+  (all(length(R[i]) == 0 for i in eachindex(psos))) &&
+    (write(log, "0 orbits found.\nTry to increase total_time, t_max or ε.");
+     close(log);
+     return)
 
-  for i in eachindex(R)
-    for j in eachindex(R[i])
-      push!(res, let lm = lm(system, collect(R[i][j][1]), R[i][j][2] * Δt, Δt, t_min[])
-                   !isnothing(lm) && (lm)
-                 end)
+  lm_u0s, lm_t0s = [], []
+
+  for i in eachindex(R) # for each u0s
+    for j in eachindex(R[i]) # for each dot in u0s
+      push!(res, lm(system, collect(R[i][j][1]), R[i][j][2] * Δt, Δt, t_min[]))
+      push!(lm_u0s, R[i][j][1])
+      push!(lm_t0s, R[i][j][2] * Δt)
     end
   end
 
-  filter!(elt->(return !(elt == false)) , res)
-
-  all(length(res[i]) == 0 for i in eachindex(res)) && (write(log, "0 orbits found\nTry to increase total_time, t_max or ε.");
-                                                       close(log);
-                                                       return)
+  all(length(res[i]) == 0 for i in eachindex(res)) &&
+    (write(log, "0 orbits found\nTry to increase total_time, t_max or ε.");
+     close(log);
+     return)
 
   psos_res = []
 
   for i in eachindex(res)
-    write(log, "\nOrbit $i\n")
+    if !isnothing(res[i])
+      write(log, "\nOrbit $i\n")
 
-    Δ = norm(res[i].state[end] .- res[i].state[1])
+      Δ = norm(res[i].state[end] .- res[i].state[1])
 
-    write(log, "Begin state = $(res[i].state[1])\n",
-               "End state   = $(res[i].state[end])\n",
-               "Δ = $Δ\n",
-               "T = $(res[i].period)\n")
+      write(log, "Before Levenberg-Marquardt:\n",
+                 "  Begin state = $(lm_u0s[i])\n",
+                 "  T = $(lm_t0s[i])\n",
+                 "After Levenberg-Marquardt:\n",
+                 "  Begin state = $(res[i].state[1])\n",
+                 "  End state   = $(res[i].state[end])\n",
+                 "  Δ = $Δ\n",
+                 "  T = $(res[i].period)\n")
 
-    Δ > ε[] && (write(log, "Distance has been increased. Skipping orbit\n"); continue)
+      Δ > ε[] && (write(log, "Distance has been increased. Skipping orbit\n"); continue)
 
-    try
-      psos_ = poincaresos(res[i].state, (j, v); direction = -1, warning = false)
-      push!(psos_res, (psos = psos_, i = i))
-    catch err
-      write(log, "Psos = empty\n")
-      continue
+      try
+        psos_ = poincaresos(res[i].state, (j, v); direction = -1, warning = false)
+        push!(psos_res, (psos = psos_, i = i))
+      catch err
+        write(log, "Psos is empty\n")
+        continue
+      end
+
+      write(log, "Psos intersection number is $(length(psos_res[end].psos))\n")
     end
-
-    write(log, "Psos intersection number is $(length(psos_res[end].psos))\n")
   end
 
-  write(log, "\nTotal orbits = $(length(psos_res))\n")
+  write(log, "\nOrbits left after LM/Newton is $(length(psos_res))\n")
 
   psos_res = group_psos(psos_res)
 
@@ -140,60 +157,58 @@ function callback(system, psos, v, j, dir, u0s, t_max, t_min, ε, δ, Δt, total
 
     write(log, "]\n")
 
-    if len_i != 1
+    if len_i != 1 # if group contain several orbits
       psos = []
 
-      # Find minimal component in SSSet and rotate it so
-      # element with minimal component became first in SSSet
-      for j in eachindex(psos_res[i])
-        k = min_index(psos_res[i][j].psos, d)
-        if k != 1
-          push!(psos, vcat(psos_res[i][j].psos[k:end], psos_res[i][j].psos[1:k - 1]))
-        elseif k == 1
+      for j in eachindex(psos_res[i])         # For each psos in group
+        k = min_index(psos_res[i][j].psos, d) # We find minimal component
+        if k != 1                             # And if it not first
+                                              # We rotate psos so it will be first
+          push!(psos, vcat(psos_res[i][j].psos[k:end], 
+                      psos_res[i][j].psos[1:k - 1]))
+        elseif k == 1                         # Else everything already in its place
           push!(psos, psos_res[i][j].psos)
         end
       end
 
-      # Group psoses by intersection number with psos
+      # Grouping our psoses by distance δ
       grouped_ind = compare_psoses(psos, δ[])
 
       if length(grouped_ind) == 1
         write(log, "All orbits were same, we'll consider first of them\n")
         saveO[] && (append!(animate, psos_res[i][1].i))
-
       elseif length(grouped_ind) != len_i
-        write(log, "Orbits with indexes ")
+        write(log, "Orbits with indexes\n  ")
 
         filtered_group     = filter(x -> (length(x) != 1), grouped_ind)
         filtered_group_len = length(filtered_group)
 
         for j in 1:filtered_group_len
           if j != filtered_group_len
-            write(log, "$(map(x -> x.i, psos_res[i][[filtered_group[j]...]])), ")
+            write(log, "$(map(x -> x.i, psos_res[i][[filtered_group[j]...]])),\n  ")
           else
-            write(log, "$(map(x -> x.i, psos_res[i][[filtered_group[j]...]]))")
+            write(log, "$(map(x -> x.i, psos_res[i][[filtered_group[j]...]]))\n")
           end
         end
 
-        write(log, " were same\n")
+        write(log, "were same\n")
 
-        if saveO[] || saveR
+        if saveO[] || saveR[]
           for j in eachindex(grouped_ind)
             append!(animate, psos_res[i][grouped_ind[j][1]].i)
           end
         end
-
       else
         write(log, "All orbits were different\n")
-        if saveO[] || saveR
+        if saveO[] || saveR[]
           for j in 1:len_i
             append!(animate, psos_res[i][j].i)
           end
         end
       end
-    else
-      if saveO[] || saveR
-        (append!(animate, psos_res[i][1].i))
+    else # if group contain single orbit
+      if saveO[] || saveR[]
+        append!(animate, psos_res[i][1].i)
       end
     end
   end
@@ -343,21 +358,7 @@ function group_by_key(arr, keyfunc)
 end
 
 function group_psos(psos_res)
-  groups_len = group_by_key(psos_res, x -> length(x.psos))
-  
-  # result = Vector{Vector{Any}}()
-  
-  # for group_len in groups_len
-  #     groups_dir = group_by_key(group_len, x -> x.direction)
-      
-  #     for group_dir in groups_dir
-  #         groups_v = group_by_key(group_dir, x -> x.v)
-          
-  #         append!(result, groups_v)
-  #     end
-  # end
-  
-  return groups_len #result
+  return group_by_key(psos_res, x -> length(x.psos))
 end
 
 function min_index(data::SSSet, dir)
@@ -496,15 +497,15 @@ function initFourthPage(screen, fig, system, final_psos, i_orbits, ds, u0s, tota
   label1 = Label(figure[2, 1], L"t_{max}=")
   tb1    = Textbox(figure[2, 2], placeholder = string(t_max[]), validator = Float64)
 
-  # TODO: make denominator for tb2 (0.01 <= t_min)
+  # TODO: make denominator for tb2 (t_min > 0)
   label2 = Label(figure[3, 1], L"t_{min}=")
   tb2    = Textbox(figure[3, 2], placeholder = string(t_min[]), validator = Float64)
- 
-  # TODO: make denominator for tb3 (0.05 <= ε <= 1)
+
+  # TODO: make denominator for tb3 (ε > 0)
   label3 = Label(figure[4, 1], L"\epsilon=")
   tb3    = Textbox(figure[4, 2], placeholder = string(ε[]),     validator = Float64)
 
-  # TODO: make denominator for tb4 (10e-10 <= ε <= 10e-3)
+  # TODO: make denominator for tb4 (δ > 0)
   label4 = Label(figure[5, 1], L"\delta=")
   tb4    = Textbox(figure[5, 2], placeholder = string(δ[]),     validator = Float64)
 
@@ -520,6 +521,7 @@ function initFourthPage(screen, fig, system, final_psos, i_orbits, ds, u0s, tota
   on(tb4.stored_string) do d δ[]     = parse(Float64, d) end
   on(cb1.checked)       do s saveR[] = s                 end
   on(cb2.checked)       do s saveO[] = s                 end
-  
-  create_button_next(figure, callback, system[], psos, v, j, dir, u0s, t_max, t_min, ε, δ, Δt, total_time, saveR, saveO, ds)
+
+  create_button_next(figure, callback, system[], psos, v, j, dir, u0s, t_max,
+                     t_min, ε, δ, Δt, total_time, saveR, saveO, ds)
 end

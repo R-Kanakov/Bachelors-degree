@@ -2,8 +2,6 @@ using DynamicalSystems, OrdinaryDiffEq
 using GLMakie, WGLMakie, Makie.Colors
 using GridLayoutBase
 
-include("util.jl")
-
 
 function convert_to_svector(points::Vector{Point3f})
     return [SVector(Float64(p[1]), Float64(p[2]), Float64(p[3])) for p in points]

@@ -2,8 +2,6 @@ using GLMakie
 using DynamicalSystems
 using GridLayoutBase
 
-include("../util.jl")
-
 
 # TODO: Make function that parse strings to DS rule
 function parse_strings()

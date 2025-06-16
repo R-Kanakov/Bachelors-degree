@@ -1,5 +1,4 @@
 include("../poincare.jl")
-include("../util.jl")
 
 
 function initThirdPage(screen, fig, u0s, total_time, system, final_psos, pageClosedT, i_orbits)
