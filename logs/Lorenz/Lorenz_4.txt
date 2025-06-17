@@ -1,0 +1,104 @@
+t_max = 50.0, t_min = 1.0
+ε = 0.01, δ = 0.0001
+
+Initial states are
+    u[1] = [1.0, 1.0, 1.0]
+    u[2] = [-1.0, -1.31596, -1.354461]
+    u[3] = [0.0, -0.25, 0.42081]
+    u[4] = [0.9538725803214, 0.44408029023623163, 0.2376619206919316]
+    u[5] = [0.5966998932016173, 0.9564831694144351, 0.11142385373571395]
+    u[6] = [0.940303284847939, 0.10942554408377103, 0.3974371331790023]
+
+Number of founded dots is 8011
+
+Poincare surface of sections defined by:
+ - Direction of movement along the axis z
+ - Value in that direction is 26.58579174986873
+ - Direction of plane intersection comes with increasing coordinate (towards the positive normal)
+
+
+Orbit 1
+Before Levenberg-Marquardt:
+  Begin state = [1.4261505293852934, -2.699614264302905, 26.58579174986873]
+  T = 48.54
+After Levenberg-Marquardt:
+  Begin state = [1.4261505293852934, -2.699614264302905, 26.58579174986873]
+  End state   = [1.4259344215720242, -2.6962003233347187, 26.58368676087734]
+  Δ = 0.004016550033931927
+  T = 48.54
+Psos intersection number is 66
+
+Orbit 2
+Before Levenberg-Marquardt:
+  Begin state = [3.0605886565338167, -0.4718369981994125, 26.58579174986873]
+  T = 46.47
+After Levenberg-Marquardt:
+  Begin state = [3.0605886565338167, -0.4718369981994125, 26.58579174986873]
+  End state   = [3.0570443481406038, -0.47826971317584704, 26.58976802228231]
+  Δ = 0.008351807364951148
+  T = 46.47
+Psos intersection number is 62
+
+Orbit 3
+Before Levenberg-Marquardt:
+  Begin state = [4.836147018692167, 2.2753741824573455, 26.58579174986873]
+  T = 22.740000000000002
+After Levenberg-Marquardt:
+  Begin state = [4.836147018692167, 2.2753741824573455, 26.58579174986873]
+  End state   = [4.831509883113221, 2.2678256599013613, 26.58787573641607]
+  Δ = 0.00910089111489778
+  T = 22.740000000000002
+Psos intersection number is 31
+
+Orbit 4
+Before Levenberg-Marquardt:
+  Begin state = [-1.9598067770796535, 2.0076976037190195, 26.58579174986873]
+  T = 39.44
+After Levenberg-Marquardt:
+  Begin state = [-1.9598067770796535, 2.0076976037190195, 26.58579174986873]
+  End state   = [-1.9578169398768586, 2.002913423511019, 26.580466855969398]
+  Δ = 0.007429826875196052
+  T = 39.44
+Psos intersection number is 53
+
+Orbit 5
+Before Levenberg-Marquardt:
+  Begin state = [3.5774313002604954, 0.29355104861718023, 26.58579174986873]
+  T = 32.84
+After Levenberg-Marquardt:
+  Begin state = [3.5774313002604954, 0.29355104861718023, 26.58579174986873]
+  End state   = [3.5786947003280507, 0.2960557068868521, 26.58868695431345]
+  Δ = 0.0040313399205795
+  T = 32.84
+Psos intersection number is 44
+
+Orbit 6
+Before Levenberg-Marquardt:
+  Begin state = [4.004498184898612, 0.9479243454851557, 26.58579174986873]
+  T = 9.93
+After Levenberg-Marquardt:
+  Begin state = [4.004498184898612, 0.9479243454851557, 26.58579174986873]
+  End state   = [4.006790869600695, 0.949208092097464, 26.591536427388405]
+  Δ = 0.006317098092704362
+  T = 9.93
+Psos intersection number is 14
+
+Orbits left after LM/Newton is 6
+
+44 intersections have orbits with indexes
+[i = 5]
+
+31 intersections have orbits with indexes
+[i = 3]
+
+66 intersections have orbits with indexes
+[i = 1]
+
+62 intersections have orbits with indexes
+[i = 2]
+
+14 intersections have orbits with indexes
+[i = 6]
+
+53 intersections have orbits with indexes
+[i = 4]

@@ -7,7 +7,7 @@ using Base.Filesystem
 using LightGraphs
 
 include("../Algorithms/LM.jl")
-
+include("../Algorithms/Newton.jl")
 
 function callback(system, psos, v, j, dir, u0s, t_max, t_min, ε, δ, Δt, total_time, saveR, saveO, ds)
   R, res = [], []

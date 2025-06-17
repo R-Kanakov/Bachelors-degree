@@ -5,88 +5,94 @@ using DifferentialEquations
 using LinearAlgebra
 using StaticArrays
 
+
 function newton_method(ds::CoupledODEs, u0::U where {U<:AbstractArray{<:Real}}, T::Float64, Δt::Float64, t_min::Float64)
-    # Размерность системы
+    # Dimensionality of the system
     D = dimension(ds)
 
-    # v - значение вектора фазовой скорости в точке u0
+    # Let's solve the problem for systems of dimension 3
+    @assert(D == 3)
+
+    # v - the value of the phase velocity vector at point u0
     v = ds.integ.f.f(u0, ds.p0, 0.0)
 
-    # Поиск ненулевых компонент для построения секущей
-    inds = findall(x -> abs(x) > 1e-8, v)
-    #length(inds) < 2 && (println("Newton: Too many zeros"); return nothing)
+    # k - index of the component that determines the position of the secant
+    k = argmax(abs.(v))
 
-    # maximum(inds)
+    # i and j - indices of the remaining components that will change
+    i, j = filter((x) -> (return x != k), [i for i in 1:D])[1:2]
 
-    # Вычисление номеров компонент, в которых располагается секущая
-    i, j = inds[1], inds[2]
-    # Если i = 1, j = 2, нужно запомнить, что компонента 3 не будет изменяться
-    # Обозначим её как k
-    k = filter((x) -> (return x != i && x != j), [i for i in 1:D])[1]
+    # Estimated time of the period
+    T_local = ForwardDiff.value(x[end])
 
-    #@assert(length(inds) < 3)
-    println("len(inds) = $(length(inds))")
+    # Ranges in which we will integrate the system
+    tspan = (0.0, T_local)
 
-    # Определение невязки
+    # Detefinition of the residual
     f = (err, x, p) -> begin
-      # Создание вектора начальных условий
-      if isinplace(ds)
-        u = @view x[[i, j]]
-        u[k] = u0[k]
-      else
-        u = SVector{D}(
-          if i == 1
-            if j == 2
-              (x[i], x[j], u0[k])
-            else
-              (x[i], u0[k], x[k])
-            end
-          elseif j == 1
-            if i == 2
-              (x[j], x[i], u0[k])
-            else
-              (x[j], u0[k], x[i])
-            end
-          else
-            if i == 2
-              (u0[k], x[i], x[j])
-            else
-              (u0[k], x[j], x[i])
-            end
-          end
-        )
-      end
+      # Creating a vector of initial conditions
+      u = SVector{D}(
+        if k == 1
+          (u0[k], x[1], x[2])
+        elseif k == 2
+          (x[1], u0[k], x[2])
+        elseif k == 3
+          (x[1], x[2], u0[k])
+        end
+      )
 
-      # Предположительное время периода
-      T_local = x[end]
+      # Integration of the system for the initial condition u for time T_local
+      sol = solve(remake(ds.integ.sol.prob; u0 = u, tspan = tspan);
+                  DynamicalSystemsBase.DEFAULT_DIFFEQ..., ds.diffeq...)
 
-      # Диапазоны, в которых будем интегрировать систему
-      tspan = (0.0, T_local)
-      save_times = 0.0:Δt:T_local
-
-      # Интегрирование системы для начального условия u на время T_local
-      sol = solve(remake(ds.integ.sol.prob; u0 = u, tspan = tspan); 
-                  DynamicalSystemsBase.DEFAULT_DIFFEQ..., ds.diffeq..., saveat = save_times)
-
-      # Разница между конечным и начальным состоянием
-      diff_vec = sol.u[end] .- sol.u[1]
-
-      # Формирование ошибки
-      err[1] = diff_vec[i]
-      err[2] = diff_vec[j]
-      err[3] = abs(sol.t[end] - sol.t[1])
+      # The difference between the final and initial state
+      err = sol.u[end] .- sol.u[1]
     end
 
-    x0 = [u0; T]
+    # Inital state
+    x0 = [u0[[i, j]]; T]
 
-    prob = NonlinearLeastSquaresProblem(NonlinearFunction(f, resid_prototype = zeros(3)), x0)
+    prob = NonlinearProblem(f, x0, nothing)
 
-    sol = solve(prob, NonlinearSolve.NewtonRaphson())
+    sol = solve(prob, NewtonRaphson();
+                show_trace = Val(true), trace_level = TraceAll())
 
-    u0_new = sol.u[1:end-1]
+    u0_new = zeros(3)
+    u0_new[i] = sol.u[1]
+    u0_new[j] = sol.u[2]
+    u0_new[k] = u0[k]
+
     T_new  = sol.u[end]
 
     T_new < t_min && (println("Newton: Period $T_new is less than t_min"); return nothing)
 
     return (state = trajectory(ds, T_new - Δt, u0_new; Δt = Δt)[1], period = T_new)
 end
+
+function main()
+  system = Systems.lorenz()
+
+  ig = [-1.9598067770796535, 2.0076976037190195, 26.58579174986873]
+  T  = 39.44
+  Δt = 0.01
+  t_min = 1.0
+
+  res = trajectory(system, T - Δt, ig; Δt = Δt)[1]
+  Δ   = LinearAlgebra.norm(res[end] .- res[1])
+
+  res_newton = newton_method(system, ig, T, Δt, t_min)
+  !isnothing(res_newton) && (Δ_newton = LinearAlgebra.norm(res_newton.state[end] .- res_newton.state[1]))
+
+  res_lm = lm(system, ig, T, Δt, t_min)
+  !isnothing(res_lm) && (Δ_lm = LinearAlgebra.norm(res_lm.state[end] .- res_lm.state[1]))
+
+  println("Begin state = $ig")
+  println("Δ = $Δ, T = $T")
+  println("res[end] - res[1] = $(res[end] .- res[1])")
+  !isnothing(res_newton) && (println("Newton begin state = $(res_newton.state[1])"))
+  !isnothing(res_newton) && (println("Δ_newton = $Δ_newton, T = $(res_newton.period)"))
+  !isnothing(res_lm) && (println("LM begin state = $(res_lm.state[1])"))
+  !isnothing(res_lm) && (println("Δ_lm = $Δ_lm, T = $(res_lm.period)"))
+end
+
+main()
